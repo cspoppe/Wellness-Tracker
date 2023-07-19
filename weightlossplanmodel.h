@@ -6,18 +6,19 @@
 #include <QGroupBox>
 #include <QDate>
 #include "statsplotmodel.h"
+#include "weighttable.h"
 
 
 class weightLossPlanModel : public QObject
 {
     Q_OBJECT
 public:
-    weightLossPlanModel(statsPlotModel *stats, QCustomPlot *weightPlot, QCustomPlot *weeklyPlot, bool loggingCompleted);
+    weightLossPlanModel(WeightTable *weightTableModel, statsPlotModel *stats, QCustomPlot *weightPlot, QCustomPlot *weeklyPlot, bool loggingCompleted);
     void loadWeightLossPlan();
     void setWeightLossPlan(QDate startDate, double tdee, double weight, double lossRate);
     void setPlanSummaryFields();
     void calculateProgress();
-    void setWeightVectorPointers(const QVector<double> *weight, const QVector<double> *dates);
+    //void setWeightVectorPointers(const QVector<double> *weight, const QVector<double> *dates);
     void setLoggingCompletedFlag(bool status);
     void updateTodaysCaloriesBar();
 
@@ -37,14 +38,14 @@ private:
     const QVector<double> *weightVector;
     const QVector<double> *weightDatesVector;
 
+    const QVector<double> *completedDatesVector;
+    const QVector<double> *completedNetCaloriesVector;
+
     QVector<double> tickToday;
     QVector<double> todayCalories;
     QVector<double> weeklyExcessCaloriesPlotVector;
     QVector<double> weeklyDeficitCaloriesPlotVector;
     QVector<double> weeklyNetCaloriesPlotVector;
-
-    int todayIndex;
-    bool loggingCompletedTodayFlag;
 
     /*
     QVector<double> netDateVector;
@@ -77,6 +78,9 @@ private:
     QCPGraph *TDEEGraph;
     double minWeight;
     double maxWeight;
+
+    int todayIndex;
+    bool loggingCompletedTodayFlag;
 };
 
 #endif // WEIGHTLOSSPLANMODEL_H

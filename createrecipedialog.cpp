@@ -152,7 +152,7 @@ void createRecipeDialog::buttonSearchClicked()
 {
     QString searchText = ui->inputSearch->text();
 
-    QString queryString = "SELECT food_id,name,description,serving_size,units,calories,tot_fat,carbs,protein FROM food_library WHERE name ILIKE '%" + searchText + "%' or description ILIKE '%" + searchText + "%'";
+    QString queryString = "SELECT id,name,description,serving_size,units,calories,tot_fat,carbs,protein FROM food_library WHERE name ILIKE '%" + searchText + "%' or description ILIKE '%" + searchText + "%'";
 
     queryModel->setQuery(queryString);
     queryModel->setHeaderData(0,Qt::Horizontal,tr("ID"));

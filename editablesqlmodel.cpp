@@ -83,7 +83,7 @@ bool EditableSqlModel::setServingSize(double servingSize, int meal, int food_id)
 void EditableSqlModel::refresh() {
     QString query = "SELECT name,description,food_library.serving_size,food_log.serving_size,units,calories,calories,"
                     "tot_fat,sat_fat,cholesterol,sodium,carbs,fiber,sugar,protein,food_log.food_id FROM"
-                    " food_log INNER JOIN food_library ON food_log.food_id = food_library.food_id WHERE"
+                    " food_log INNER JOIN food_library ON food_log.food_id = food_library.id WHERE"
                     " meal = " + QString::number(mealNo) + " and food_log.date = '" + currentDate + "'";
     setQuery(query);
     QSqlError err = lastError();

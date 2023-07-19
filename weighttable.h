@@ -15,8 +15,8 @@ public:
     void resizeXAxis();
     void resizeXAxis(QDate startDate, QDate endDate);
     QVariant data(const QModelIndex &index, int role) const;
-    const QVector<double>* getWeightVectorPtr() const;
-    const QVector<double>* getDateVectorPtr() const;
+    const QVector<double> * getWeightVectorPtr() const;
+    const QVector<double> * getDateVectorPtr() const;
 
 private:
     QCustomPlot *weightPlot;

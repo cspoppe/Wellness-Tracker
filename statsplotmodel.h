@@ -6,10 +6,12 @@
 
 
 
-class statsPlotModel
+class statsPlotModel : public QObject
 {
+    Q_OBJECT
+
 public:
-    statsPlotModel(QCustomPlot *customPlot);
+    statsPlotModel(QCustomPlot *customPlot, QObject *parent = nullptr);
     void getDataFromDB();
     enum plotNutrient {plotFoodCalories,plotExerciseCalories,plotNetCalories,plotTotFat,plotSatFat,plotCholesterol,plotSodium,plotCarbs,plotFiber,plotSugar,plotProtein};
     void addNutritionPlot(plotNutrient);
@@ -17,7 +19,6 @@ public:
     void refreshPlot();
     void addCheckBoxToGroup();
     void setCheckBoxColors();
-    void toggleLegend(int show);
     void resizeXAxis();
     void resizeXAxis(QDate startDate, QDate endDate);
     void setCompleteDaysFlag(bool state) {plotCompleteDays = state;}
@@ -30,9 +31,11 @@ public:
 
     QButtonGroup *checkBoxGroup;
     QVector<QString> getCompletedDateStrings() const;
-    QVector<double> getCompletedNetCalories() const;
-    QVector<double> getCompletedDates() const;
+    const QVector<double> * getCompletedNetCaloriesPtr() const;
+    const QVector<double> * getCompletedDatesPtr() const;
 
+public slots:
+    void toggleLegend(int show);
 
 private:
     QCustomPlot *plot;

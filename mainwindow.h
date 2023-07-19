@@ -25,6 +25,7 @@
 #include "runningdatamodel.h"
 #include "createrecipedialog.h"
 #include "recipeeditmodel.h"
+#include "foodlibrarytablemodel.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -42,7 +43,7 @@ public:
     QSqlQueryModel *querySearchModel;
     WeightTable *weightModel;
     runningDataModel *runningModel;
-    QSqlTableModel *foodLibraryModel;
+    foodLibraryTableModel *foodLibraryModel;
     nutrientsModel *nutrients;
     foodSearchProxyModel *foodSearchProxy;
     weightLossPlanModel *weightLossModel;
@@ -88,13 +89,15 @@ private slots:
     void tableRecipesClicked(const QModelIndex &index);
     void updateRecipeMacros();
     void updatePlotData(QVector<double> stats);
+    void submitChanges();
+    void setEnableSubmitRevertButtons(bool status);
 
     void cleanUpString(QString& str);
     void addFoodToLog(int meal, int food_id, double serving_size);
     void addMealToLog(int destMealNum, QString date, int sourceMealNum);
     void addExerciseToLog(int exercise_id);
     void deleteExerciseFromLog(int exercise_id);
-    void deleteFoodFromLog(int meal, int food_id);
+    void deleteFoodFromLog(int meal, int food_id, int row_index);
     void initializeFoodLogTables();
     void addFoodToMeal(QItemSelectionModel *select,  int mealNo);
     void addMealToMeal(QItemSelectionModel *select, int mealNo);

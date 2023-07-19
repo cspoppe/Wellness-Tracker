@@ -30,6 +30,7 @@ SOURCES += \
     createrecipedialog.cpp \
     editablesqlmodel.cpp \
     exercisemodel.cpp \
+    foodlibrarytablemodel.cpp \
     foodsearchproxymodel.cpp \
     macrosmodel.cpp \
     main.cpp \
@@ -52,6 +53,7 @@ HEADERS += \
     createrecipedialog.h \
     editablesqlmodel.h \
     exercisemodel.h \
+    foodlibrarytablemodel.h \
     foodsearchproxymodel.h \
     macrosmodel.h \
     mainwindow.h \

@@ -5,7 +5,7 @@
 //#include "qsqlquerymodel.h"
 #include <QtSql>
 
-statsPlotModel::statsPlotModel(QCustomPlot *customPlot) : plot(customPlot), plotCompleteDays(false)
+statsPlotModel::statsPlotModel(QCustomPlot *customPlot, QObject *parent) : QObject{parent}, plot(customPlot), plotCompleteDays(false)
 {
     nutrientStats[plotFoodCalories] = &food_calories;
     nutrientStats[plotExerciseCalories] = &exercise_calories;
@@ -102,7 +102,7 @@ void statsPlotModel::getDataFromDB()
                           "ROUND(SUM(food_log.serving_size/food_library.serving_size*food_library.protein),0) AS protein "
                           "INTO TEMP TABLE food_table "
                           "FROM food_log "
-                          "INNER JOIN food_library ON food_log.food_id = food_library.food_id "
+                          "INNER JOIN food_library ON food_log.food_id = food_library.id "
                           "GROUP BY food_log.date ORDER BY food_log.date ASC; ";
     model.setQuery(queryString);
     queryString = "SELECT food_table.date,food_calories,COALESCE(exercise_calories,0) AS exercise_calories,tot_fat,sat_fat,cholesterol,sodium,carbs,fiber,sugar,protein from food_table "
@@ -332,7 +332,6 @@ void statsPlotModel::refreshPlot()
         // grab index of each button
         int id = checkBoxGroup->id(checkboxes[i]);
         // remove old graph, if it exists
-        qDebug() << "  checkbox id: " << id << ", nutrient: " << static_cast<plotNutrient>(id) << Qt::endl;
         removeNutritionPlot(static_cast<plotNutrient>(id));
 
 
@@ -406,17 +405,12 @@ void statsPlotModel::removeNutritionPlot(plotNutrient nutrient)
         // grab plot index from activePlots
         QCPGraph* graph = activePlots[nutrient];
 
-        bool ret = plot->removeGraph(graph);
-        qDebug() << "nutrient: " << nutrient << ", removal success: " << ret << Qt::endl;
+        plot->removeGraph(graph);
         // remove plot index from activePlots
         activePlots.erase(nutrient);
         autoResizeAxes();
         plot->replot();
 
-    }
-    else
-    {
-        qDebug() << "removeNutritionPlot: nutrient " << nutrient << " not found!" << Qt::endl;
     }
 }
 
@@ -476,12 +470,12 @@ QVector<QString> statsPlotModel::getCompletedDateStrings() const
     return completed_date_strings;
 }
 
-QVector<double> statsPlotModel::getCompletedNetCalories() const
+const QVector<double> * statsPlotModel::getCompletedNetCaloriesPtr() const
 {
-    return completed_net_calories;
+    return &completed_net_calories;
 }
 
-QVector<double> statsPlotModel::getCompletedDates() const
+const QVector<double> * statsPlotModel::getCompletedDatesPtr() const
 {
-    return completed_dates;
+    return &completed_dates;
 }

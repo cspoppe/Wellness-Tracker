@@ -19,10 +19,18 @@ WeightTable::WeightTable(QCustomPlot *customWeightPlot, QCustomPlot *customBodyF
     weightPlot->xAxis->setTicker(dateTicker);
     weightPlot->xAxis->setLabel("Date");
     weightPlot->yAxis->setLabel("Weight (lbs)");
+    weightPlot->xAxis2->setVisible(true);
+    weightPlot->xAxis2->setTicks(false);
+    weightPlot->yAxis2->setVisible(true);
+    weightPlot->yAxis2->setTicks(false);
 
     bodyFatPlot->xAxis->setTicker(dateTicker);
     bodyFatPlot->xAxis->setLabel("Date");
     bodyFatPlot->yAxis->setLabel("Body Fat %");
+    bodyFatPlot->xAxis2->setVisible(true);
+    bodyFatPlot->xAxis2->setTicks(false);
+    bodyFatPlot->yAxis2->setVisible(true);
+    bodyFatPlot->yAxis2->setTicks(false);
 
     weightGraph = weightPlot->addGraph();
     weightGraph->setPen(QPen(Qt::blue));

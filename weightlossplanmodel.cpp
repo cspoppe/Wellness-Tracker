@@ -5,9 +5,17 @@
 #include <QDateTime>
 #include <QTime>
 
-weightLossPlanModel::weightLossPlanModel(statsPlotModel *stats, QCustomPlot *weightPlot, QCustomPlot *weeklyPlot, bool loggingCompleted) : statsModel(stats), weightLossPlot(weightPlot),
+weightLossPlanModel::weightLossPlanModel(WeightTable *weightTableModel, statsPlotModel *stats, QCustomPlot *weightPlot, QCustomPlot *weeklyPlot, bool loggingCompleted) : statsModel(stats), weightLossPlot(weightPlot),
     weeklyWeightPlot(weeklyPlot), loggingCompletedTodayFlag(loggingCompleted)
 {
+
+    weightVector = weightTableModel->getWeightVectorPtr();
+    weightDatesVector = weightTableModel->getDateVectorPtr();
+
+    completedDatesVector = statsModel->getCompletedDatesPtr();
+    completedNetCaloriesVector = statsModel->getCompletedNetCaloriesPtr();
+
+
     weightLossPlot->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
     dateTicker->setDateTimeFormat("MMM dd yyyy");
@@ -58,16 +66,22 @@ weightLossPlanModel::weightLossPlanModel(statsPlotModel *stats, QCustomPlot *wei
     weeklyExcessCaloriesBar->moveAbove(weeklyNetCaloriesBar);
 
     TDEEGraph->setAntialiased(false);
+
+    //loadWeightLossPlan();
+    //calculateProgress();
 }
 
+/*
 void weightLossPlanModel::setWeightVectorPointers(const QVector<double> *weight, const QVector<double> *dates)
 {
     weightVector = weight;
     weightDatesVector = dates;
 }
+*/
 
 void weightLossPlanModel::loadWeightLossPlan()
 {
+    qDebug() << "loadWeightLossPlan..." << Qt::endl;
     QSqlQueryModel model;
     QString queryString = "SELECT * FROM weight_loss_plan";
     model.setQuery(queryString);
@@ -91,7 +105,8 @@ void weightLossPlanModel::loadWeightLossPlan()
     plan_values.push_back(weight_loss_rate_weekly);
     plan_values.push_back(daily_caloric_deficit);
 
-    calculateProgress();
+    qDebug() << plan_values << Qt::endl;
+
     plotWeeklyCalories();
 
     emit setPlanSummary(planStartDate, plan_values);
@@ -109,18 +124,15 @@ void weightLossPlanModel::plotWeeklyCalories()
     double currentDate = QDateTime(today,QTime()).toSecsSinceEpoch();
     double startOfWeek = currentDate - todayIndex*SEC_IN_DAY+60; // adding 60 seconds makes it easier to compare to vector of logged dates by simple inequalities
 
-    QVector<double> dates = statsModel->getCompletedDates();
-    QVector<double> netCalories = statsModel->getCompletedNetCalories();
-
     // grab data beginning with this day and after
-    int i = dates.size()-1;
-    while (dates[i] > startOfWeek) --i;
+    int i = completedDatesVector->size()-1;
+    while ((*completedDatesVector)[i] > startOfWeek) --i;
 
-    QVector<double> datesThisWeek = dates.sliced(i);
+    QVector<double> datesThisWeek = completedDatesVector->sliced(i);
     weeklyExcessCaloriesPlotVector = {};
     weeklyDeficitCaloriesPlotVector = {};
     weeklyNetCaloriesPlotVector = {};
-    QVector<double> netCaloriesThisWeek = netCalories.sliced(i);
+    QVector<double> netCaloriesThisWeek = completedNetCaloriesVector->sliced(i);
 
     int nPoints = netCaloriesThisWeek.size();
 
@@ -249,14 +261,14 @@ void weightLossPlanModel::calculateProgress()
     QDate currentDate = QDate::currentDate();
     double startDateDouble = convertDateToDouble(planStartDate);
     double currentDateDouble = convertDateToDouble(currentDate);
-    QVector<double> dates = statsModel->getCompletedDates();
-    QVector<double> netCalories = statsModel->getCompletedNetCalories();
+    //QVector<double> dates = statsModel->getCompletedDates();
+    //QVector<double> netCalories = statsModel->getCompletedNetCalories();
 
     // find the first date that's on or after the beginning of the plan.
     int start_i = 0;
-    for (int i{0}; i < dates.size(); ++i)
+    for (int i{0}; i < completedDatesVector->size(); ++i)
     {
-        if (startDateDouble <= dates[i])
+        if (startDateDouble <= (*completedDatesVector)[i])
         {
             start_i = i;
             break;
@@ -265,12 +277,12 @@ void weightLossPlanModel::calculateProgress()
 
     int daysSinceStart = qRound((currentDateDouble - startDateDouble)/SEC_IN_DAY);
     qDebug() << "calculateProgress:" << Qt::endl;
-    int nDays = dates.size()-start_i;
+    int nDays = completedDatesVector->size()-start_i;
     double totalCalories = 0.0;
-    for (int i{start_i}; i < netCalories.size();++i)
+    for (int i{start_i}; i < completedNetCaloriesVector->size();++i)
     {
-        qDebug() << " date: " << dates[i] << ", net calories: " << netCalories[i] << Qt::endl;
-        totalCalories += netCalories[i];
+        qDebug() << " date: " << (*completedDatesVector)[i] << ", net calories: " << (*completedNetCaloriesVector)[i] << Qt::endl;
+        totalCalories += (*completedNetCaloriesVector)[i];
     }
     // net calories consumed minus est. calories burned
     totalCalorieDelta = totalCalories - nDays*TDEE_estimated;
