@@ -7,6 +7,7 @@
 #include <QDate>
 #include "statsplotmodel.h"
 #include "weighttable.h"
+#include "weeklycaloriesmodel.h"
 
 
 class weightLossPlanModel : public QObject
@@ -21,6 +22,7 @@ public:
     //void setWeightVectorPointers(const QVector<double> *weight, const QVector<double> *dates);
     void setLoggingCompletedFlag(bool status);
     void updateTodaysCaloriesBar();
+    weeklyCaloriesModel *weeklyCaloriesTable;
 
 signals:
     void setPlanSummary(QDate start_date, QVector<double> plan_values);

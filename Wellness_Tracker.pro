@@ -45,6 +45,7 @@ SOURCES += \
     runningdatamodel.cpp \
     statsplotmodel.cpp \
     utilityFcns.cpp \
+    weeklycaloriesmodel.cpp \
     weightlossplandialog.cpp \
     weightlossplanmodel.cpp \
     weighttable.cpp
@@ -65,8 +66,10 @@ HEADERS += \
     recipeeditmodel.h \
     recipetablemodel.h \
     runningdatamodel.h \
+    searchUIComponents.h \
     statsplotmodel.h \
     utilityFcns.h \
+    weeklycaloriesmodel.h \
     weightlossplandialog.h \
     weightlossplanmodel.h \
     weighttable.h

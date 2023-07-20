@@ -37,7 +37,7 @@ void macrosModel::updateData() {
     // get total calories
     double tot_calories = std::accumulate(macro_calories.begin(),macro_calories.end(),0);
     // first, set total calories
-    QStandardItem *caloriesItem = new QStandardItem(QString::number(tot_calories,'g',3));
+    QStandardItem *caloriesItem = new QStandardItem(QString::number(nutrients[0],'g',3));
     setItem(0,1,caloriesItem);
     for (int i = 0; i < 3; i++) {
         int index = indices[i];

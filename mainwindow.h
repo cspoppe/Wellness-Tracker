@@ -26,6 +26,7 @@
 #include "createrecipedialog.h"
 #include "recipeeditmodel.h"
 #include "foodlibrarytablemodel.h"
+#include "searchuicomponents.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -52,10 +53,13 @@ public:
     mealsStructure *mealsStruct;
     exerciseModel *exerciseMod;
     mealSummaryModel *mealSummary;
-    QButtonGroup* btnGroup;
+    QButtonGroup* radioGroupFoodLog;
+    QButtonGroup* radioGroupRecipes;
     statsPlotModel* plotModel;
     QSqlQueryModel* listRecipesModel;
     recipeEditModel *recipeEditTableModel;
+    searchUIComponents *foodLogComponents;
+    searchUIComponents *recipesComponents;
 
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
@@ -66,7 +70,7 @@ private slots:
     void buttonLogWeightClicked();
     void buttonLogRunningClicked();
     void buttonAddFoodClicked();
-    void buttonFoodSearchClicked();
+    void buttonFoodSearchClicked(searchUIComponents *comp);
     void buttonAddToMeal(int mealNum);
     void buttonAddExercise();
     void buttonDeleteExercise();
@@ -77,6 +81,7 @@ private slots:
     void buttonPlotAllNutrientDataClicked();
     void buttonWeightReplotClicked();
     void buttonPlotAllWeightDataClicked();
+
     void checkBoxDayLoggingClicked(int state);
     void checkBoxCompleteDaysOnlyClicked(int state);
     void toggleNutritionLegend(int state);
@@ -105,7 +110,7 @@ private slots:
     void deleteExercise(QItemSelectionModel *select);
     void deleteFoodFromMeal(QItemSelectionModel *select, QTableView* table, int mealNo);
     void checkBoxToggled(int id, bool checked);
-    void radioButtonClicked();
+    void radioButtonClicked(searchUIComponents *comp);
     void fetchRecipes();
 private:
     bool loggingCompletedToday;

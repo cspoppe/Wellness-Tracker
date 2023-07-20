@@ -8,12 +8,12 @@
 weightLossPlanModel::weightLossPlanModel(WeightTable *weightTableModel, statsPlotModel *stats, QCustomPlot *weightPlot, QCustomPlot *weeklyPlot, bool loggingCompleted) : statsModel(stats), weightLossPlot(weightPlot),
     weeklyWeightPlot(weeklyPlot), loggingCompletedTodayFlag(loggingCompleted)
 {
-
     weightVector = weightTableModel->getWeightVectorPtr();
     weightDatesVector = weightTableModel->getDateVectorPtr();
 
     completedDatesVector = statsModel->getCompletedDatesPtr();
     completedNetCaloriesVector = statsModel->getCompletedNetCaloriesPtr();
+    weeklyCaloriesTable = new weeklyCaloriesModel();
 
 
     weightLossPlot->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
@@ -96,6 +96,7 @@ void weightLossPlanModel::loadWeightLossPlan()
     qDebug() << "date: " << dateString << Qt::endl;
     planStartDate = QDate::fromString(dateString,"yyyy-MM-dd");
     TDEE_estimated = model.record(0).value("TDEE").toDouble();
+    weeklyCaloriesTable->setTDEE(TDEE_estimated);
     goalWeight = model.record(0).value("goal_weight").toDouble();
     weight_loss_rate_weekly = model.record(0).value("loss_rate_target").toDouble();
     daily_caloric_deficit = weight_loss_rate_weekly*3500/7.0;
@@ -106,6 +107,8 @@ void weightLossPlanModel::loadWeightLossPlan()
     plan_values.push_back(daily_caloric_deficit);
 
     qDebug() << plan_values << Qt::endl;
+
+    weeklyCaloriesTable->loadData(TDEE_estimated,completedDatesVector,completedNetCaloriesVector);
 
     plotWeeklyCalories();
 
