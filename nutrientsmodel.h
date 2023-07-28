@@ -16,7 +16,7 @@ public:
 signals:
     nutrientsUpdated(QVector<double> stats);
 public slots:
-    void updateData();
+    void updateData(bool emitSignal = true);
 private:
     mealsStructure *mealsStruct;
     exerciseModel *exercise;

@@ -33,7 +33,7 @@ QVariant nutrientsModel::data(const QModelIndex& index, int role) const
     }
 }
 
-void nutrientsModel::updateData() {
+void nutrientsModel::updateData(bool emitSignal) {
     // grab data from breakfast, lunch, dinner and snack tables and sum them.
     QVector<double> total_stats = mealsStruct->getNutritionTotals();
     double exercise_calories = exercise->getCalories();
@@ -63,5 +63,6 @@ void nutrientsModel::updateData() {
         setItem(index,2,percentItem);
     }
 
-    emit nutrientsUpdated(total_stats);
+    if (emitSignal)
+        emit nutrientsUpdated(total_stats);
 }

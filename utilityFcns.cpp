@@ -38,3 +38,30 @@ bool areSameDay(double day1, double day2)
 
     return (fabs(day1-day2) < margin_sec);
 }
+
+bool areSameDay(QDate day1, double day2)
+{
+    // first convert the QDate to a double.
+    double day1Double = convertDateToDouble(day1);
+    return areSameDay(day1Double, day2);
+}
+
+bool areSameDay(double day1, QDate day2)
+{
+    // first convert the QDate to a double.
+    double day2Double = convertDateToDouble(day2);
+    return areSameDay(day1, day2Double);
+}
+
+int mealLabelMap(QString meal)
+{
+    std::unordered_map<QString, int> mealMap =
+        {
+            {"Breakfast",0},
+            {"Lunch",1},
+            {"Dinner",2},
+            {"Snacks",3}
+        };
+
+    return mealMap[meal];
+}

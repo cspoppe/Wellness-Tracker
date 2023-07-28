@@ -31,6 +31,9 @@ private:
     double minBodyFat, maxBodyFat;
     QVector<double> dateVector;
     void updatePlot();
+
+    QFont tickLabelFont;
+    QFont labelFont;
 };
 
 #endif // WEIGHTTABLE_H

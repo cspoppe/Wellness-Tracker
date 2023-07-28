@@ -14,6 +14,9 @@ double roundDec(double val, int nDec);
 double convertDateToDouble(QDate date);
 double convertDateToDouble(QString dateString);
 bool areSameDay(double day1, double day2);
+bool areSameDay(QDate day1, double day2);
+bool areSameDay(double day1, QDate day2);
+int mealLabelMap(QString meal);
 
 template <typename T>
 T vectorMin(QVector<T> vec)
@@ -26,6 +29,5 @@ T vectorMax(QVector<T> vec)
 {
     return *std::max_element(vec.begin(),vec.end());
 }
-
 
 #endif // UTILITYFCNS_H

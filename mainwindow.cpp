@@ -21,6 +21,8 @@ MainWindow::MainWindow(QWidget *parent)
     currentDate = QDate::currentDate();
     ui->labelCurrentDate->setText(dateToString(currentDate,displayFormat));
 
+    headerFont.setBold(true);
+
     if (!db.open()) {
         QMessageBox::information(this, "Not Connected", "Database is not connected!");
         return;
@@ -52,6 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->tableWeight->verticalHeader()->setVisible(false);
     ui->tableWeight->setSortingEnabled(true);
     ui->tableWeight->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->tableWeight->horizontalHeader()->setFont(headerFont);
 
     runningModel = new runningDataModel(ui->runningPlotDistance,ui->runningPlotPace,ui->runningPlotHeartRate);
     runningModel->setTable("running_log");
@@ -63,6 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->tableRunning->setSortingEnabled(true);
     ui->tableRunning->hideColumn(0);
     ui->tableRunning->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->tableRunning->horizontalHeader()->setFont(headerFont);
 
     // hide ID column
     int idIdx = weightModel->fieldIndex("id");
@@ -141,6 +145,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->tableRecipeEdit->horizontalHeader()->setFont(font);
     ui->tableRecipeEdit->verticalHeader()->setVisible(false);
+    ui->tableRecipeEdit->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableRecipeEdit->setSelectionMode(QAbstractItemView::SingleSelection);
 
     ui->tableFoodLibrary->setModel(foodLibraryModel);
     ui->tableFoodLibrary->verticalHeader()->setVisible(false);
@@ -203,45 +209,6 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::plotExample()
-{
-    // get sum of calories for each day
-    // hard-code this query for now for testing
-
-    QString queryString = "SELECT date,ROUND(SUM(food_log.serving_size/food_library.serving_size*food_library.calories),0) "
-                  "AS calories from food_log "
-                  "INNER JOIN food_library ON food_log.food_id = food_library.id "
-                  "GROUP BY date "
-                  "ORDER BY date DESC";
-
-    QSqlQueryModel model;
-    model.setQuery(queryString);
-    QSqlError err = model.lastError();
-    if (err.type() != QSqlError::NoError) qDebug() << err.text() << Qt::endl;
-
-    int nRows = model.rowCount();
-    QVector<double> dates(nRows);
-    QVector<double> calories(nRows);
-    for (int i{0}; i < nRows; i++)
-    {
-        calories[i] = model.record(i).value("calories").toDouble();
-        QString dateString = model.record(i).value("date").toString();
-        dates[i] = QDateTime::fromString(dateString,"yyyy-MM-dd").toSecsSinceEpoch();
-    }
-    ui->customPlot->addGraph();
-    ui->customPlot->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
-    QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
-    dateTicker->setDateTimeFormat("dd-MM-yyyy");
-    ui->customPlot->xAxis->setTicker(dateTicker);
-
-    ui->customPlot->graph(0)->setData(dates,calories);
-    ui->customPlot->xAxis->setLabel("Date");
-    ui->customPlot->yAxis->setLabel("Calories");
-    ui->customPlot->xAxis->setRange(dates[0],dates[dates.size()-1]);
-    ui->customPlot->yAxis->setRange(0,2500);
-    ui->customPlot->replot();
-}
-
 void MainWindow::buttonDateChangeClicked(int n)
 {
     // decrement current date by one.
@@ -255,7 +222,7 @@ void MainWindow::buttonDateChangeClicked(int n)
     // update food tables
     mealsStruct->refresh();
     exerciseMod->refresh();
-    nutrients->updateData();
+    nutrients->updateData(false);
 }
 
 bool MainWindow::updateLoggingCompletedCheckMark()
@@ -299,6 +266,9 @@ void MainWindow::makeConnections()
     connect(ui->buttonAddSnacks,&QPushButton::clicked,this,[this] {buttonAddToMeal(3);});
     connect(ui->buttonAddExercise,&QPushButton::clicked,this,[this] {buttonAddExercise();});
 
+    for (int i{0}; i < 4; ++i)
+        connect(mealsStruct->meals[i],&mealStruct::logUpdated,this,[=]() {nutrients->updateData();});
+
     connect(ui->buttonDeleteBreakfast,&QPushButton::clicked,this,[this] {buttonDeleteFromMeal(0);});
     connect(ui->buttonDeleteLunch,&QPushButton::clicked,this,[this] {buttonDeleteFromMeal(1);});
     connect(ui->buttonDeleteDinner,&QPushButton::clicked,this,[this] {buttonDeleteFromMeal(2);});
@@ -331,8 +301,30 @@ void MainWindow::makeConnections()
     connect(ui->tableRecipes,&QAbstractItemView::clicked,this,&MainWindow::tableRecipesClicked);
 
     connect(recipeEditTableModel,&recipeTableModel::macrosUpdated,this,&MainWindow::updateRecipeMacros);
+    connect(recipeEditTableModel,&recipeEditModel::recipeUpdated,this,&MainWindow::updateRecipeMacros);
+    connect(ui->buttonAddToRecipe,&QPushButton::clicked,this,&MainWindow::buttonAddToRecipeClicked);
+    connect(ui->buttonDeleteFromRecipe,&QPushButton::clicked,this,&MainWindow::buttonDeleteFromRecipeClicked);
+
     connect(nutrients,&nutrientsModel::nutrientsUpdated,this,&MainWindow::updatePlotData);
+    //connect(nutrients,&nutrientsModel::nutrientsUpdated,this,&MainWindow::updatePlotData);
     //connect(recipeDialog,&QDialog::finished,this,&MainWindow::createRecipeDialogFinished);
+}
+
+void MainWindow::buttonAddToRecipeClicked()
+{
+    QItemSelectionModel *select = ui->tableFoodSearchResultsRecipes->selectionModel();
+    int id = radioGroupRecipes->checkedId();
+    if (id == foodSearch)
+        recipeEditTableModel->addFood(select);
+    else
+        recipeEditTableModel->addMeal(select);
+
+}
+
+void MainWindow::buttonDeleteFromRecipeClicked()
+{
+    QItemSelectionModel *select = ui->tableRecipeEdit->selectionModel();
+    recipeEditTableModel->deleteFood(select);
 }
 
 void MainWindow::setEnableSubmitRevertButtons(bool status)
@@ -400,23 +392,25 @@ void MainWindow::tableRecipesClicked(const QModelIndex &index)
         // Query the database and retrieve ingredients for recipe that was selected, then load them
         // into the table
 
-        QString queryString = "select food_library.id,food_library.name,description,recipe_ingredients.serving_size,units,"
-                              "round(recipe_ingredients.serving_size/food_library.serving_size*calories) AS calories,"
-                              "round(recipe_ingredients.serving_size/food_library.serving_size*tot_fat) AS tot_fat,"
-                              "round(recipe_ingredients.serving_size/food_library.serving_size*carbs) AS carbs,"
-                              "round(recipe_ingredients.serving_size/food_library.serving_size*protein) AS protein,"
-                              "food_library.serving_size "
-                              "FROM recipe_ingredients INNER JOIN food_library ON recipe_ingredients.food_id = food_library.id "
-                              "WHERE recipe_id = " + QString::number(recipe_id);
-        queryModel->setQuery(queryString);
-        QSqlError err = queryModel->lastError();
-        if (err.type() != QSqlError::NoError) qDebug() << err.text() << Qt::endl;
-        recipeEditTableModel->loadRecipe(recipe_id, queryModel);
+
+        recipeEditTableModel->loadRecipe(recipe_id);
         ui->tableRecipeEdit->setModel(recipeEditTableModel);
         ui->tableRecipeEdit->horizontalHeader()->hideSection(0);
         ui->tableRecipeEdit->horizontalHeader()->hideSection(9);
         ui->tableRecipeEdit->horizontalHeader()->hideSection(10);
         ui->tableRecipeEdit->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+        for (int i{1}; i < 3; ++i)
+        {
+            ui->tableRecipeEdit->horizontalHeader()->setSectionResizeMode(i,QHeaderView::ResizeToContents);
+            int col_width = ui->tableRecipeEdit->horizontalHeader()->sectionSize(i);
+            col_width += 5;
+            ui->tableRecipeEdit->horizontalHeader()->setSectionResizeMode(i,QHeaderView::Fixed);
+            ui->tableRecipeEdit->horizontalHeader()->resizeSection(i,col_width);
+        }
+
+        //ui->tableRecipeEdit->horizontalHeader()->setSectionResizeMode(1,QHeaderView::Fixed);
+        //ui->tableRecipeEdit->horizontalHeader()->resizeSection(1,col_width);
     }
     qDebug() << "recipe id selected: " << recipe_id << Qt::endl;
 }
@@ -462,6 +456,8 @@ void MainWindow::createRecipeDialogFinished(int result)
         queryModel->setQuery(insertString);
         err = queryModel->lastError();
         if (err.type() != QSqlError::NoError) qDebug() << err.text() << Qt::endl;
+
+        fetchRecipes();
     }
     delete recipeDialog;
 }
@@ -554,6 +550,11 @@ void MainWindow::checkBoxDayLoggingClicked(int state)
             loggingCompletedToday = false;
         else
             loggingCompletedToday = true;
+
+        // update data in the statsPlotModel to include today's today if the box was checked,
+        // or to pop today's data off if the box was unchecked.
+
+        plotModel->setLoggingCompleted(loggingCompletedToday);
         weightLossModel->setLoggingCompletedFlag(loggingCompletedToday);
     }
 
@@ -570,13 +571,15 @@ void MainWindow::checkBoxToggled(int id, bool checked)
 
 void MainWindow::radioButtonClicked(searchUIComponents *comp)
 {
+    buttonFoodSearchClicked(comp);
     // check if the search bar is empty
+    /*
     QString searchText = comp->searchBar->text();
     if (!searchText.isEmpty())
     {
         buttonFoodSearchClicked(comp);
     }
-
+*/
 }
 
 void MainWindow::initializeFoodLogTables()
@@ -589,8 +592,9 @@ void MainWindow::initializeFoodLogTables()
 */
     mealsStruct = new mealsStructure(dateToString(currentDate));
     exerciseMod = new exerciseModel(dateToString(currentDate));
+    exerciseProxy = new foodSearchProxyModel(exerciseMod);
 
-    std::vector<QTableView*> tables = {ui->tableBreakfast, ui->tableLunch, ui->tableDinner, ui->tableSnacks,ui->tableMacrosBreakfast,ui->tableMacrosLunch,ui->tableMacrosDinner,ui->tableMacrosSnacks,ui->tableNutrients,ui->tableExercise};
+    std::vector<QTableView*> tables = {ui->tableBreakfast, ui->tableLunch, ui->tableDinner, ui->tableSnacks,ui->tableExercise,ui->tableMacrosBreakfast,ui->tableMacrosLunch,ui->tableMacrosDinner,ui->tableMacrosSnacks,ui->tableNutrients};
 
     int i = 0;
     QFont font;
@@ -598,10 +602,11 @@ void MainWindow::initializeFoodLogTables()
     for (auto & table: tables) {
         table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
         table->horizontalHeader()->setFont(font);
-        if (((i >= 4) && (i <= 7)) || (i == 8))
-            table->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
         table->verticalHeader()->setVisible(false);
-        if (i > 3) table->horizontalHeader()->setVisible(false);
+        if (i > 4) {
+            table->horizontalHeader()->setVisible(false);
+            table->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        }
         table->setSelectionBehavior(QAbstractItemView::SelectRows);
         table->setSelectionMode(QAbstractItemView::SingleSelection);
         i++;
@@ -613,7 +618,7 @@ void MainWindow::initializeFoodLogTables()
     ui->tableLunch->setModel(mealsStruct->meals[1]->proxyModel);
     ui->tableDinner->setModel(mealsStruct->meals[2]->proxyModel);
     ui->tableSnacks->setModel(mealsStruct->meals[3]->proxyModel);
-    ui->tableExercise->setModel(exerciseMod);
+    ui->tableExercise->setModel(exerciseProxy);
 
     ui->tableMacrosBreakfast->setModel(mealsStruct->meals[0]->mealMacros);
     ui->tableMacrosLunch->setModel(mealsStruct->meals[1]->mealMacros);
@@ -760,13 +765,23 @@ void MainWindow::buttonFoodSearchClicked(searchUIComponents *comp)
         querySearchModel->setHeaderData(2,Qt::Horizontal,tr("Desc."));
         querySearchModel->setHeaderData(3,Qt::Horizontal,tr("Serving"));
         querySearchModel->setHeaderData(4,Qt::Horizontal,tr("Units"));
-        querySearchModel->setHeaderData(4,Qt::Horizontal,tr("Calories"));
+        querySearchModel->setHeaderData(5,Qt::Horizontal,tr("Calories"));
         comp->table->setModel(foodSearchProxy);
+        comp->table->showColumn(0);
         comp->table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     }
     else if (id == recipeSearch)
     {
-
+        QString queryString = "SELECT * FROM recipes WHERE recipe_name ILIKE '%" + searchText + "%';";
+        queryModel->setQuery(queryString);
+        QSqlError err = queryModel->lastError();
+        if (err.type() != QSqlError::NoError) qDebug() << err.text() << Qt::endl;
+        queryModel->setHeaderData(0,Qt::Horizontal,tr("ID"));
+        queryModel->setHeaderData(1,Qt::Horizontal,tr("Recipe"));
+        comp->table->setModel(queryModel);
+        comp->table->horizontalHeader()->setFont(headerFont);
+        comp->table->hideColumn(0);
+        comp->table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     }
     else if (id == mealSearch)
     {
@@ -811,7 +826,11 @@ void MainWindow::buttonFoodSearchClicked(searchUIComponents *comp)
         QString queryString = "SELECT * FROM exercise_library WHERE exercise_name ILIKE '%" + searchText + "%'";
         //queryModel = new QSqlQueryModel();
         queryModel->setQuery(queryString);
+        queryModel->setHeaderData(0,Qt::Horizontal,tr("ID"));
+        queryModel->setHeaderData(1,Qt::Horizontal,tr("Exercise"));
         comp->table->setModel(queryModel);
+        comp->table->horizontalHeader()->setFont(headerFont);
+        comp->table->hideColumn(0);
         comp->table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     }
 }
@@ -823,70 +842,11 @@ void MainWindow::buttonAddToMeal(int mealNum)
     // check status of radio button to see if we are adding a single food or entire meal
     int id = radioGroupFoodLog->checkedId();
     if (id == foodSearch)
-        addFoodToMeal(select, mealNum);
+        mealsStruct->meals[mealNum]->addFood(select); //addFoodToMeal(select, mealNum);
+    else if (id == recipeSearch)
+        mealsStruct->meals[mealNum]->addRecipe(select);
     else
-        addMealToMeal(select, mealNum);
-}
-
-void MainWindow::addFoodToMeal(QItemSelectionModel *select, int mealNo)
-{
-    if (select != NULL && select->hasSelection()) {
-        qDebug() << "selectionModel has selection" << Qt::endl;
-        QModelIndexList selection = select->selectedRows();
-        QModelIndex index = selection.at(0);
-        qDebug() << index.row();
-        QAbstractProxyModel *proxyModel = qobject_cast<QAbstractProxyModel*>(ui->tableFoodSearchResults->model());
-        int food_id = proxyModel->sourceModel()->index(index.row(),0).data().toInt();
-        double serving_size = proxyModel->sourceModel()->index(index.row(),3).data().toDouble();
-        // add this food to our database for the day's food log
-        addFoodToLog(mealNo,food_id,serving_size);
-    } else {
-        qDebug() << "selectionModel has NO selection" << Qt::endl;
-    }
-}
-
-void MainWindow::addFoodToLog(int meal, int food_id, double serving_size) {
-    QString insertString = "INSERT INTO food_log(date,meal,food_id,serving_size) VALUES('"+dateToString(currentDate)+"',";
-    insertString += QString::number(meal) + ",";
-    insertString += QString::number(food_id) + ",";
-    insertString += QString::number(serving_size) + ");";
-    //queryModel = new QSqlQueryModel();
-    queryModel->setQuery(insertString);
-    mealsStruct->meals[meal]->refresh();
-    //breakfast->mealModel->refresh();
-    nutrients->updateData();
-    //mealsStruct->meals[meal]->mealMacros->updateData();
-}
-
-void MainWindow::addMealToMeal(QItemSelectionModel *select, int mealNo)
-{
-    if (select != NULL && select->hasSelection()) {
-        qDebug() << "addMealToMeal: selectionModel has selection" << Qt::endl;
-        QModelIndexList selection = select->selectedRows();
-        QModelIndex index = selection.at(0);
-        qDebug() << index.row();
-        QString date = ui->tableFoodSearchResults->model()->index(index.row(),0).data().toString();
-        QString sourceMeal = ui->tableFoodSearchResults->model()->index(index.row(),1).data().toString();
-        int sourceMealNum = mealLabelMap[sourceMeal];
-        // add this food to our database for the day's food log
-        addMealToLog(mealNo,date,sourceMealNum);
-    } else {
-        qDebug() << "addMealToMeal:  selectionModel has NO selection" << Qt::endl;
-    }
-}
-
-void MainWindow::addMealToLog(int destMealNum, QString date, int sourceMealNum) {
-    QString insertString = "WITH myconst (var1,var2) as (values (date('"+dateToString(currentDate)+"'),"+QString::number(destMealNum)+")) "
-                                                                                                                                              "INSERT INTO food_log SELECT var1,var2,food_id,serving_size from myconst,food_log "
-                                                                                                                                              "WHERE date='"+date+"' AND meal=" + QString::number(sourceMealNum);
-    qDebug() << "addMealToLog:" << Qt::endl << "dest meal: " << QString::number(destMealNum) << ", date: " << date << ", source meal: " << QString::number(sourceMealNum) << Qt::endl;
-    //queryModel = new QSqlQueryModel();
-    queryModel->setQuery(insertString);
-    QSqlError err = queryModel->lastError();
-    if (err.type() != QSqlError::NoError) qDebug() << err.text() << Qt::endl;
-    mealsStruct->meals[destMealNum]->refresh();
-    nutrients->updateData();
-    //mealsStruct->meals[meal]->mealMacros->updateData();
+        mealsStruct->meals[mealNum]->addMeal(select);
 }
 
 void MainWindow::buttonDeleteFromMeal(int mealNum)
@@ -894,48 +854,9 @@ void MainWindow::buttonDeleteFromMeal(int mealNum)
     std::vector<QTableView*> tables = {ui->tableBreakfast,ui->tableLunch,ui->tableDinner,ui->tableSnacks};
     //QTableView*
     QItemSelectionModel *select = tables[mealNum]->selectionModel();
-    deleteFoodFromMeal(select, tables[mealNum], mealNum);
-}
+    //deleteFoodFromMeal(select, tables[mealNum], mealNum);
 
-void MainWindow::deleteFoodFromMeal(QItemSelectionModel *select, QTableView* table, int mealNo)
-{
-    if (select != NULL && select->hasSelection()) {
-        qDebug() << "selectionModel has selection" << Qt::endl;
-        QModelIndexList selection = select->selectedRows();
-        QModelIndex index = selection.at(0);
-        qDebug() << index.row();
-        QAbstractProxyModel *proxyModel = qobject_cast<QAbstractProxyModel*>(table->model());
-        int food_id = proxyModel->sourceModel()->index(index.row(),15).data().toInt();
-        // delete this food from our database for the day's food log
-        deleteFoodFromLog(mealNo,food_id,index.row());
-    } else {
-        qDebug() << "selectionModel has NO selection" << Qt::endl;
-    }
-}
-
-void MainWindow::deleteFoodFromLog(int meal, int food_id, int row_index) {
-    QSqlQuery query;
-    query.prepare("DELETE FROM food_log where date='"+dateToString(currentDate)+"' AND meal=:meal AND food_id=:food_id");
-    query.bindValue(":meal",meal);
-    query.bindValue(":food_id",food_id);
-    if (query.exec()) {
-        std::vector<QTableView*> tables = {ui->tableBreakfast,ui->tableLunch,ui->tableDinner,ui->tableSnacks};
-        mealsStruct->meals[meal]->refresh();
-        QItemSelectionModel *selection = tables[meal]->selectionModel();
-        int lastRowIndex = tables[meal]->model()->rowCount()-1;
-        if (lastRowIndex >= 0)
-        {
-            QModelIndex idx;
-            if (row_index < lastRowIndex)
-                idx = tables[meal]->model()->index(row_index,0);
-            else
-                idx = tables[meal]->model()->index(lastRowIndex,0);
-            selection->select(idx,QItemSelectionModel::Select | QItemSelectionModel::Rows);
-        }
-        //meals[meal]->mealModel->refresh();
-        nutrients->updateData();
-        //meals[meal]->mealMacros->updateData();
-    }
+    mealsStruct->meals[mealNum]->deleteFood(select);
 }
 
 void MainWindow::buttonAddExercise()
@@ -986,7 +907,8 @@ void MainWindow::deleteExercise(QItemSelectionModel *select)
         qDebug() << "deleteExercise called." << Qt::endl;
         QModelIndexList selection = select->selectedRows();
         QModelIndex index = selection.at(0);
-        int exercise_id = ui->tableExercise->model()->index(index.row(),3).data().toInt();
+        QAbstractProxyModel *proxyModel = qobject_cast<QAbstractProxyModel*>(ui->tableExercise->model());
+        int exercise_id = proxyModel->sourceModel()->index(index.row(),0).data().toInt();
         // add this food to our database for the day's food log
         deleteExerciseFromLog(exercise_id);
     } else {
@@ -1092,3 +1014,113 @@ void MainWindow::buttonPlotAllWeightDataClicked()
 {
     weightModel->resizeXAxis();
 }
+
+
+
+
+/*
+void MainWindow::addFoodToMeal(QItemSelectionModel *select, int mealNo)
+{
+    if (select != NULL && select->hasSelection()) {
+        qDebug() << "selectionModel has selection" << Qt::endl;
+        QModelIndexList selection = select->selectedRows();
+        QModelIndex index = selection.at(0);
+        qDebug() << index.row();
+        QAbstractProxyModel *proxyModel = qobject_cast<QAbstractProxyModel*>(select->model());
+        int food_id = proxyModel->sourceModel()->index(index.row(),0).data().toInt();
+        double serving_size = proxyModel->sourceModel()->index(index.row(),3).data().toDouble();
+        // add this food to our database for the day's food log
+        addFoodToLog(mealNo,food_id,serving_size);
+    } else {
+        qDebug() << "selectionModel has NO selection" << Qt::endl;
+    }
+}
+
+void MainWindow::addFoodToLog(int meal, int food_id, double serving_size) {
+    QString insertString = "INSERT INTO food_log(date,meal,food_id,serving_size) VALUES('"+dateToString(currentDate)+"',";
+    insertString += QString::number(meal) + ",";
+    insertString += QString::number(food_id) + ",";
+    insertString += QString::number(serving_size) + ");";
+    //queryModel = new QSqlQueryModel();
+    queryModel->setQuery(insertString);
+    mealsStruct->meals[meal]->refresh();
+    //breakfast->mealModel->refresh();
+    nutrients->updateData();
+    //mealsStruct->meals[meal]->mealMacros->updateData();
+}
+
+void MainWindow::addMealToMeal(QItemSelectionModel *select, int mealNo)
+{
+    if (select != NULL && select->hasSelection()) {
+        qDebug() << "addMealToMeal: selectionModel has selection" << Qt::endl;
+        QModelIndexList selection = select->selectedRows();
+        QModelIndex index = selection.at(0);
+        qDebug() << index.row();
+        QString date = ui->tableFoodSearchResults->model()->index(index.row(),0).data().toString();
+        QString sourceMeal = ui->tableFoodSearchResults->model()->index(index.row(),1).data().toString();
+        int sourceMealNum = mealLabelMap(sourceMeal);
+        // add this food to our database for the day's food log
+        addMealToLog(mealNo,date,sourceMealNum);
+    } else {
+        qDebug() << "addMealToMeal:  selectionModel has NO selection" << Qt::endl;
+    }
+}
+
+void MainWindow::addMealToLog(int destMealNum, QString date, int sourceMealNum) {
+    QString insertString = "WITH myconst (var1,var2) as (values (date('"+dateToString(currentDate)+"'),"+QString::number(destMealNum)+")) "
+                                                                                                                                              "INSERT INTO food_log SELECT var1,var2,food_id,serving_size from myconst,food_log "
+                                                                                                                                              "WHERE date='"+date+"' AND meal=" + QString::number(sourceMealNum);
+    qDebug() << "addMealToLog:" << Qt::endl << "dest meal: " << QString::number(destMealNum) << ", date: " << date << ", source meal: " << QString::number(sourceMealNum) << Qt::endl;
+    //queryModel = new QSqlQueryModel();
+    queryModel->setQuery(insertString);
+    QSqlError err = queryModel->lastError();
+    if (err.type() != QSqlError::NoError) qDebug() << err.text() << Qt::endl;
+    mealsStruct->meals[destMealNum]->refresh();
+    nutrients->updateData();
+    //mealsStruct->meals[meal]->mealMacros->updateData();
+}
+*/
+
+
+/*
+void MainWindow::deleteFoodFromMeal(QItemSelectionModel *select, QTableView* table, int mealNo)
+{
+    if (select != NULL && select->hasSelection()) {
+        qDebug() << "selectionModel has selection" << Qt::endl;
+        QModelIndexList selection = select->selectedRows();
+        QModelIndex index = selection.at(0);
+        qDebug() << index.row();
+        QAbstractProxyModel *proxyModel = qobject_cast<QAbstractProxyModel*>(table->model());
+        int food_id = proxyModel->sourceModel()->index(index.row(),15).data().toInt();
+        // delete this food from our database for the day's food log
+        deleteFoodFromLog(mealNo,food_id,index.row());
+    } else {
+        qDebug() << "selectionModel has NO selection" << Qt::endl;
+    }
+}
+
+void MainWindow::deleteFoodFromLog(int meal, int food_id, int row_index) {
+    QSqlQuery query;
+    query.prepare("DELETE FROM food_log where date='"+dateToString(currentDate)+"' AND meal=:meal AND food_id=:food_id");
+    query.bindValue(":meal",meal);
+    query.bindValue(":food_id",food_id);
+    if (query.exec()) {
+        std::vector<QTableView*> tables = {ui->tableBreakfast,ui->tableLunch,ui->tableDinner,ui->tableSnacks};
+        mealsStruct->meals[meal]->refresh();
+        QItemSelectionModel *selection = tables[meal]->selectionModel();
+        int lastRowIndex = tables[meal]->model()->rowCount()-1;
+        if (lastRowIndex >= 0)
+        {
+            QModelIndex idx;
+            if (row_index < lastRowIndex)
+                idx = tables[meal]->model()->index(row_index,0);
+            else
+                idx = tables[meal]->model()->index(lastRowIndex,0);
+            selection->select(idx,QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        }
+        //meals[meal]->mealModel->refresh();
+        nutrients->updateData();
+        //meals[meal]->mealMacros->updateData();
+    }
+}
+*/

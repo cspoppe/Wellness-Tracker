@@ -28,7 +28,6 @@ LIBS += -L$$PWD/./ -l$$QCPLIB
 
 SOURCES += \
     createrecipedialog.cpp \
-    editablesqlmodel.cpp \
     exercisemodel.cpp \
     foodlibrarytablemodel.cpp \
     foodsearchproxymodel.cpp \
@@ -43,6 +42,7 @@ SOURCES += \
     recipeeditmodel.cpp \
     recipetablemodel.cpp \
     runningdatamodel.cpp \
+    sqlmealmodel.cpp \
     statsplotmodel.cpp \
     utilityFcns.cpp \
     weeklycaloriesmodel.cpp \
@@ -52,7 +52,6 @@ SOURCES += \
 
 HEADERS += \
     createrecipedialog.h \
-    editablesqlmodel.h \
     exercisemodel.h \
     foodlibrarytablemodel.h \
     foodsearchproxymodel.h \
@@ -67,6 +66,7 @@ HEADERS += \
     recipetablemodel.h \
     runningdatamodel.h \
     searchUIComponents.h \
+    sqlmealmodel.h \
     statsplotmodel.h \
     utilityFcns.h \
     weeklycaloriesmodel.h \

@@ -1,12 +1,12 @@
 #include <QtSql>
-#include "editablesqlmodel.h"
+#include "sqlmealmodel.h"
 
-EditableSqlModel::EditableSqlModel(int meal, QString date, QObject *parent)
+sqlMealModel::sqlMealModel(int meal, QString date, QObject *parent)
     : QSqlQueryModel{parent}, mealNo(meal), currentDate(date), nutrition_stats(9,0.0)
 {
 }
 
-Qt::ItemFlags EditableSqlModel::flags(const QModelIndex &index) const
+Qt::ItemFlags sqlMealModel::flags(const QModelIndex &index) const
 {
     Qt::ItemFlags flags = QSqlQueryModel::flags(index);
     if (index.column() == 3)
@@ -14,12 +14,12 @@ Qt::ItemFlags EditableSqlModel::flags(const QModelIndex &index) const
     return flags;
 }
 
-int EditableSqlModel::columnCount(const QModelIndex& parent) const {
+int sqlMealModel::columnCount(const QModelIndex& parent) const {
     Q_UNUSED(parent);
     return 16;
 }
 
-bool EditableSqlModel::setData(const QModelIndex &index, const QVariant &value, int role) {
+bool sqlMealModel::setData(const QModelIndex &index, const QVariant &value, int role) {
     // we can only edit column 3 (serving size)
     if (index.column() != 3)
         return false;
@@ -33,7 +33,7 @@ bool EditableSqlModel::setData(const QModelIndex &index, const QVariant &value, 
     return ok;
 }
 
-QVariant EditableSqlModel::data(const QModelIndex& index, int role) const {
+QVariant sqlMealModel::data(const QModelIndex& index, int role) const {
     if ((index.column() == 5) && (role == Qt::DisplayRole || role == Qt::EditRole)) {
         QModelIndex i_servings_base = index.siblingAtColumn(2);
         QModelIndex i_servings_tot = index.siblingAtColumn(3);
@@ -50,7 +50,7 @@ QVariant EditableSqlModel::data(const QModelIndex& index, int role) const {
     }
 }
 
-bool EditableSqlModel::updateNutritionTotals() {
+bool sqlMealModel::updateNutritionTotals() {
     // sum the values of each column containing nutrition stats and save them to nutrition_stats vector.
     std::vector<double> stats(9,0.0);
     for (int row = 0; row < QSqlQueryModel::rowCount(); row++) {
@@ -71,7 +71,7 @@ bool EditableSqlModel::updateNutritionTotals() {
     return true;
 }
 
-bool EditableSqlModel::setServingSize(double servingSize, int meal, int food_id) {
+bool sqlMealModel::setServingSize(double servingSize, int meal, int food_id) {
     QSqlQuery query;
     query.prepare("UPDATE food_log set serving_size = :serving_size where date = '" + currentDate + "' and meal = :mealNo and food_id = :food_id");
     query.bindValue(":serving_size", servingSize);
@@ -80,7 +80,7 @@ bool EditableSqlModel::setServingSize(double servingSize, int meal, int food_id)
     return query.exec();
 }
 
-void EditableSqlModel::refresh() {
+void sqlMealModel::refresh() {
     QString query = "SELECT name,description,food_library.serving_size,food_log.serving_size,units,calories,calories,"
                     "tot_fat,sat_fat,cholesterol,sodium,carbs,fiber,sugar,protein,food_log.food_id FROM"
                     " food_log INNER JOIN food_library ON food_log.food_id = food_library.id WHERE"

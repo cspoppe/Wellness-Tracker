@@ -7,6 +7,11 @@
 
 statsPlotModel::statsPlotModel(QCustomPlot *customPlot, QObject *parent) : QObject{parent}, plot(customPlot), plotCompleteDays(false)
 {
+
+    tickLabelFont.setPointSize(12);
+    labelFont.setPointSize(14);
+    labelFont.setStyleStrategy(QFont::PreferAntialias);
+
     nutrientStats[plotFoodCalories] = &food_calories;
     nutrientStats[plotExerciseCalories] = &exercise_calories;
     nutrientStats[plotNetCalories] = &net_calories;
@@ -66,14 +71,21 @@ statsPlotModel::statsPlotModel(QCustomPlot *customPlot, QObject *parent) : QObje
     QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
     dateTicker->setDateTimeFormat("MMM dd yyyy");
     plot->xAxis->setTicker(dateTicker);
-    plot->xAxis->setLabel("Date");
-    plot->yAxis->setLabel("Calories OR mg");
+    //plot->xAxis->setLabel("Date");
+    plot->yAxis->setLabel("Calories/mg");
     plot->yAxis2->setVisible(true);
     plot->yAxis2->setTicks(true);
     plot->yAxis2->setTickLabels(true);
     plot->yAxis2->setLabel("Grams");
     plot->yAxis->setRange(0,3000);
     plot->yAxis2->setRange(0,150);
+
+    plot->xAxis->setTickLabelFont(tickLabelFont);
+    plot->yAxis->setLabelFont(labelFont);
+    plot->yAxis->setTickLabelFont(tickLabelFont);
+    plot->yAxis2->setLabelFont(labelFont);
+    plot->yAxis2->setTickLabelFont(tickLabelFont);
+    plot->legend->setFont(tickLabelFont);
 
 }
 
@@ -236,6 +248,23 @@ void statsPlotModel::updateDaysData(QDate qdate, QVector<double> updatedStats)
     refreshPlot();
 }
 
+void statsPlotModel::setLoggingCompleted(bool status)
+{
+    if (status)
+    {
+        // logging has been completed for the day, so we need to push the last entries from the stats vectors
+        // onto the comleted stats vectors
+        pushDataToCompletedVectors();
+    }
+    else
+    {
+        // this will only occur if the day had previously been checked as completed and then unchecked,
+        // which means we simply need to remove the last entryies from the completed vectors
+        popDataFromCompletedVectors();
+    }
+    plot->replot();
+}
+
 // function inserts date in the date vector in chronological spot and returns index of position
 // if the date ends up simply being pushed onto the end of the vector, we return -1
 int statsPlotModel::insertDate(QDate qdate, QVector<double> &dates)
@@ -295,6 +324,31 @@ void statsPlotModel::populateCompletedVectors()
         pushDataToCompletedVectors(date_ptr);
     }
 
+}
+
+void statsPlotModel::popDataFromCompletedVectors()
+{
+    completed_dates.pop_back();
+    completed_food_calories.pop_back();
+    completed_exercise_calories.pop_back();
+    completed_net_calories.pop_back();
+    completed_tot_fat.pop_back();
+    completed_sat_fat.pop_back();
+    completed_cholesterol.pop_back();
+    completed_sodium.pop_back();
+    completed_carbs.pop_back();
+    completed_fiber.pop_back();
+    completed_sugar.pop_back();
+    completed_protein.pop_back();
+}
+
+void statsPlotModel::pushDataToCompletedVectors()
+{
+    // this version of the function is called when we want to take the last entries from the data vectors
+    // and push them to the completed vectors.
+    int i = dates.size()-1;
+    completed_dates.push_back(dates[i]);
+    pushDataToCompletedVectors(i);
 }
 
 void statsPlotModel::pushDataToCompletedVectors(int date_ptr)

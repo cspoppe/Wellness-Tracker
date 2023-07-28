@@ -1,15 +1,15 @@
 
-#ifndef EDITABLESQLMODEL_H
-#define EDITABLESQLMODEL_H
+#ifndef SQLMEALMODEL_H
+#define SQLMEALMODEL_H
 
 #include <QSqlQueryModel>
 
-class EditableSqlModel : public QSqlQueryModel
+class sqlMealModel : public QSqlQueryModel
 {
     Q_OBJECT
 
 public:
-    explicit EditableSqlModel(int meal, QString date, QObject *parent = nullptr);
+    explicit sqlMealModel(int meal, QString date, QObject *parent = nullptr);
     Qt::ItemFlags flags(const QModelIndex &index) const override;
     int columnCount(const QModelIndex& parent) const override;
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
@@ -17,6 +17,7 @@ public:
     void refresh();
     std::vector<double> getNutritionStats() {return nutrition_stats;}
     void setDate(QString date) {currentDate = date;}
+    QString getDate() {return currentDate;}
 private:
     bool setServingSize(double servingSize, int meal, int food_id);
     int numColumns;
@@ -27,4 +28,4 @@ private:
 
 };
 
-#endif // EDITABLESQLMODEL_H
+#endif // SQLMEALMODEL_H

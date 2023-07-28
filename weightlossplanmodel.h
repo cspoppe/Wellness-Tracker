@@ -36,6 +36,7 @@ private:
     double daily_caloric_deficit;
     void calculateWeightLossFit();
     void plotWeeklyCalories();
+    void createTodayCaloriesBar();
 
     const QVector<double> *weightVector;
     const QVector<double> *weightDatesVector;
@@ -68,6 +69,9 @@ private:
     double weight_fit_b;
 
     double weight_change_lbs_per_day;
+
+    QFont tickLabelFont;
+    QFont labelFont;
 
     QCustomPlot *weightLossPlot;
     QCustomPlot *weeklyWeightPlot;

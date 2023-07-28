@@ -5,8 +5,8 @@
 #include <QDateTime>
 #include <QTime>
 
-weeklyCaloriesModel::weeklyCaloriesModel(QObject *parent)
-    : QStandardItemModel{parent}
+weeklyCaloriesModel::weeklyCaloriesModel(bool loggingStatus, QObject *parent)
+    : QStandardItemModel{parent}, loggingCompletedTodayFlag(loggingStatus)
 {
     setColumnCount(11);
     setHeaderData(0,Qt::Horizontal,tr("Start"));
@@ -18,8 +18,8 @@ weeklyCaloriesModel::weeklyCaloriesModel(QObject *parent)
     setHeaderData(6,Qt::Horizontal,tr("Fri"));
     setHeaderData(7,Qt::Horizontal,tr("Sat"));
     setHeaderData(8,Qt::Horizontal,tr("Sun"));
-    setHeaderData(9,Qt::Horizontal,tr("Total"));
-    setHeaderData(10,Qt::Horizontal,tr("Delta"));
+    setHeaderData(9,Qt::Horizontal,tr("Tot. Cal."));
+    setHeaderData(10,Qt::Horizontal,tr("Tot. Delta"));
 }
 
 void weeklyCaloriesModel::loadData(double tdee, const QVector<double> *dates,const QVector<double> *calories)
@@ -29,10 +29,15 @@ void weeklyCaloriesModel::loadData(double tdee, const QVector<double> *dates,con
     // this function return 1 for Monday, 2 for Tues.,
     // For our purposes, we want to begin with 0 for Monday.
     QDate today = QDate::currentDate();
-    int todayIndex = today.dayOfWeek()-1;
-    QDate monday = today.addDays(-todayIndex);
+    int dayOfWeek = today.dayOfWeek()-1;
+    QDate monday = today.addDays(-dayOfWeek);
     //double currentDate = QDateTime(today,QTime()).toSecsSinceEpoch();
     double startOfWeek = convertDateToDouble(monday);
+    /* if the dates vector does not include today (i.e., today's log has not been completed),
+     * then we need to add an entry for today so that we can update the calorie count as we
+     * fill out the log during the day.
+     */
+
 
 
     int i = dates->size()-1;
@@ -57,10 +62,10 @@ void weeklyCaloriesModel::loadData(double tdee, const QVector<double> *dates,con
         int index = i;
         for (int j = 0; j < 7; ++j)
         {
-            if ( (index < dates->size()) && areSameDay( (*dates)[index],convertDateToDouble(day)) )
+            if ( (index < dates->size()) && areSameDay( (*dates)[index],day) )
             {
                 total_cal += (*calories)[index];
-                QStandardItem *item = new QStandardItem(QString::number( (*calories)[index] ));
+                QStandardItem *item = new QStandardItem(QString::number( (*calories)[index] - TDEE));
                 newRow.push_back(item);
                 ++index;
                 ++nDays;
@@ -69,12 +74,14 @@ void weeklyCaloriesModel::loadData(double tdee, const QVector<double> *dates,con
             {
                 // complete data was not logged for this day, so we simply push "N/A" to the table
                 QStandardItem *item;
-                if (day < today)
+                if (day < today) {
                     item = new QStandardItem(QString("N/A"));
-                else
+                } else {
                     item = new QStandardItem(QString("--"));
+                }
                 newRow.push_back(item);
             }
+            if (day == today) todayColumn = j+2;
             day = day.addDays(1);
         }
         double total_delta = total_cal - nDays*TDEE;
@@ -90,6 +97,8 @@ void weeklyCaloriesModel::loadData(double tdee, const QVector<double> *dates,con
         startOfWeek = convertDateToDouble(monday);
     }
 
+    // save index for today's calories so we can update it on the fly.
+
 }
 
 
@@ -99,25 +108,62 @@ QVariant weeklyCaloriesModel::data(const QModelIndex &index, int role) const
     // if total is over TDEE, display as red
     if ((role == Qt::BackgroundRole) && (index.column() > 1))
     {
+        if (index.row() == 0 && index.column() == todayColumn && !loggingCompletedTodayFlag) return colorToday.lighter(170);
         QString str = QStandardItemModel::data(index,Qt::DisplayRole).toString();
         if (str != "N/A" && str != "--")
         {
-            int calories = str.toInt();
-            if (index.column() == 10)
+            int calorie_delta = str.toInt();
+            if (index.column() != 9)
             {
-                if (calories < 0)
-                    return colorUnder;
+                if (calorie_delta <= 0)
+                {
+                    // scale the brightness of the background by how far underneath the TDEE we are
+                    // A deficit of 500 calories is the maximum
+                    double deficit = -calorie_delta;
+                    deficit = (deficit < 500) ? deficit : 500;
+                    int lightness = static_cast<int>(200 - deficit/5);
+                    return colorUnder.lighter(lightness);
+                }
                 else
-                    return colorOver;
-            }
-            else if (index.column() < 9)
-            {
-                if (calories <= TDEE)
-                    return colorUnder;
-                else
-                    return colorOver;
+                {
+                    double excess = calorie_delta;
+                    excess = (excess < 500) ? excess : 500;
+                    int lightness = static_cast<int>(200 - excess/5);
+                    return colorOver.lighter(lightness);
+                }
             }
         }
     }
     return QStandardItemModel::data(index,role);
+}
+
+void weeklyCaloriesModel::updateTodaysCount(double calories)
+{
+    QStandardItem *item = new QStandardItem(QString::number( static_cast<int>(calories - TDEE)));
+    setItem(0,todayColumn,item);
+    updateWeeksDelta();
+}
+
+void weeklyCaloriesModel::updateWeeksDelta()
+{
+    //
+    int calories_total = 0;
+    for (int col = 2; col < 9; ++col)
+    {
+        QString str = QStandardItemModel::data(index(0,col),Qt::DisplayRole).toString();
+        if (str != "N/A" && str != "--")
+        {
+            calories_total += str.toInt();
+        }
+    }
+    QStandardItem *item = new QStandardItem(QString::number( calories_total ));
+    setItem(0,10,item);
+}
+
+void weeklyCaloriesModel::setLoggingStatus(bool status)
+{
+    loggingCompletedTodayFlag = status;
+    QModelIndex index = QStandardItemModel::index(0,todayColumn);
+    QVariant color = QStandardItemModel::data(index,Qt::BackgroundRole);
+    setData(index,color,Qt::BackgroundRole);
 }

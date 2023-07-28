@@ -2,7 +2,7 @@
 #include "macrosmodel.h"
 #include <numeric>
 
-macrosModel::macrosModel(EditableSqlModel *meal, QObject *parent)
+macrosModel::macrosModel(sqlMealModel *meal, QObject *parent)
     : QStandardItemModel{4,3,parent}, mealModel(meal)
 {
     labels = {"Calories","Fat (g)","Carbs (g)","Protein (g)"};

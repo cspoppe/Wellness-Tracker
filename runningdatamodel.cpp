@@ -6,6 +6,10 @@
 runningDataModel::runningDataModel(QCustomPlot *customPlotDistance, QCustomPlot *customPlotPace, QCustomPlot *customPlotHeartRate, QObject *parent, QSqlDatabase db)
     : QSqlTableModel{parent, db}, plotDistance(customPlotDistance), plotPace(customPlotPace), plotHeartRate(customPlotHeartRate), dataLoaded(false)
 {
+    tickLabelFont.setPointSize(12);
+    labelFont.setPointSize(14);
+    labelFont.setStyleStrategy(QFont::PreferAntialias);
+
     // initially we set extremely large min values and small max values
     distanceMinMax = {1000.0,0.0};
     paceMinMax = {1000.0,0.0};
@@ -20,12 +24,24 @@ runningDataModel::runningDataModel(QCustomPlot *customPlotDistance, QCustomPlot 
     plotDistance->xAxis->setTicker(dateTicker);
     plotPace->xAxis->setTicker(dateTicker);
     plotHeartRate->xAxis->setTicker(dateTicker);
-    plotDistance->xAxis->setLabel("Date");
-    plotPace->xAxis->setLabel("Date");
-    plotHeartRate->xAxis->setLabel("Date");
+    //plotDistance->xAxis->setLabel("Date");
+    //plotPace->xAxis->setLabel("Date");
+    //plotHeartRate->xAxis->setLabel("Date");
     plotDistance->yAxis->setLabel("Miles");
     plotPace->yAxis->setLabel("Min/mi");
     plotHeartRate->yAxis->setLabel("BPM");
+
+    plotDistance->xAxis->setTickLabelFont(tickLabelFont);
+    plotDistance->yAxis->setTickLabelFont(tickLabelFont);
+    plotDistance->yAxis->setLabelFont(labelFont);
+
+    plotPace->xAxis->setTickLabelFont(tickLabelFont);
+    plotPace->yAxis->setTickLabelFont(tickLabelFont);
+    plotPace->yAxis->setLabelFont(labelFont);
+
+    plotHeartRate->xAxis->setTickLabelFont(tickLabelFont);
+    plotHeartRate->yAxis->setTickLabelFont(tickLabelFont);
+    plotHeartRate->yAxis->setLabelFont(labelFont);
 
     plotDistance->addGraph();
     plotDistance->graph(0)->setPen(QPen(Qt::blue));
@@ -160,10 +176,10 @@ QVariant runningDataModel::headerData(int section, Qt::Orientation orientation, 
             ret = tr("Date");
             break;
         case 2:
-            ret = tr("Distance (mi)");
+            ret = tr("Miles");
             break;
         case 3:
-            ret = tr("Duration (min)");
+            ret = tr("Minutes");
             break;
         case 4:
             ret = tr("Heart Rate");

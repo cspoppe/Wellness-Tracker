@@ -8,7 +8,7 @@
 #include <QMessageBox>
 #include "qtableview.h"
 #include "weighttable.h"
-//#include "editablesqlmodel.h"
+//#include "sqlmealmodel.h"
 #include "nutrientsmodel.h"
 //#include "mealproxymodel.h"
 //#include "macrosmodel.h"
@@ -52,6 +52,7 @@ public:
     createRecipeDialog *recipeDialog;
     mealsStructure *mealsStruct;
     exerciseModel *exerciseMod;
+    foodSearchProxyModel *exerciseProxy;
     mealSummaryModel *mealSummary;
     QButtonGroup* radioGroupFoodLog;
     QButtonGroup* radioGroupRecipes;
@@ -81,6 +82,8 @@ private slots:
     void buttonPlotAllNutrientDataClicked();
     void buttonWeightReplotClicked();
     void buttonPlotAllWeightDataClicked();
+    void buttonAddToRecipeClicked();
+    void buttonDeleteFromRecipeClicked();
 
     void checkBoxDayLoggingClicked(int state);
     void checkBoxCompleteDaysOnlyClicked(int state);
@@ -96,39 +99,33 @@ private slots:
     void updatePlotData(QVector<double> stats);
     void submitChanges();
     void setEnableSubmitRevertButtons(bool status);
-
     void cleanUpString(QString& str);
-    void addFoodToLog(int meal, int food_id, double serving_size);
-    void addMealToLog(int destMealNum, QString date, int sourceMealNum);
     void addExerciseToLog(int exercise_id);
     void deleteExerciseFromLog(int exercise_id);
-    void deleteFoodFromLog(int meal, int food_id, int row_index);
     void initializeFoodLogTables();
-    void addFoodToMeal(QItemSelectionModel *select,  int mealNo);
-    void addMealToMeal(QItemSelectionModel *select, int mealNo);
     void addExercise(QItemSelectionModel *select);
     void deleteExercise(QItemSelectionModel *select);
-    void deleteFoodFromMeal(QItemSelectionModel *select, QTableView* table, int mealNo);
     void checkBoxToggled(int id, bool checked);
     void radioButtonClicked(searchUIComponents *comp);
     void fetchRecipes();
+
+    /*
+    void addFoodToLog(int meal, int food_id, double serving_size);
+    void addMealToLog(int destMealNum, QString date, int sourceMealNum);
+    void deleteFoodFromLog(int meal, int food_id, int row_index);
+    void addFoodToMeal(QItemSelectionModel *select,  int mealNo);
+    void addMealToMeal(QItemSelectionModel *select, int mealNo);
+    void deleteFoodFromMeal(QItemSelectionModel *select, QTableView* table, int mealNo);
+    */
 private:
     bool loggingCompletedToday;
+    QFont headerFont;
     enum radioButton {foodSearch, recipeSearch, mealSearch, exerciseSearch};
     enum comboBoxValue {CB_Days,CB_Weeks, CB_Months, CB_Years};
     QDate currentDate;
     void makeConnections();
     bool updateLoggingCompletedCheckMark();
-    void plotExample();
-    //std::vector<mealStruct*> mealsVector;
     Ui::MainWindow *ui;
-    std::unordered_map<QString, int> mealLabelMap =
-        {
-        {"Breakfast",0},
-        {"Lunch",1},
-        {"Dinner",2},
-        {"Snacks",3}
-    };
 
 };
 

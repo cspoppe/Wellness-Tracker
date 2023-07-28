@@ -2,7 +2,7 @@
 #include "mealproxymodel.h"
 #include <qDebug>
 
-MealProxyModel::MealProxyModel(EditableSqlModel *meal, QObject *parent)
+MealProxyModel::MealProxyModel(sqlMealModel *meal, QObject *parent)
     : QSortFilterProxyModel{parent}, mealModel(meal)
 {
     setSourceModel(mealModel);

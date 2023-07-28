@@ -10,6 +10,10 @@
 WeightTable::WeightTable(QCustomPlot *customWeightPlot, QCustomPlot *customBodyFatPlot, QObject *parent, QSqlDatabase db)
     : QSqlTableModel{parent, db}, weightPlot(customWeightPlot), bodyFatPlot(customBodyFatPlot), dataLoaded(false)
 {
+    tickLabelFont.setPointSize(12);
+    labelFont.setPointSize(14);
+    labelFont.setStyleStrategy(QFont::PreferAntialias);
+
     weightPlot->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     bodyFatPlot->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
@@ -17,20 +21,29 @@ WeightTable::WeightTable(QCustomPlot *customWeightPlot, QCustomPlot *customBodyF
     dateTicker->setDateTimeFormat("MMM dd yyyy");
     dateTicker2->setDateTimeFormat("MMM dd yyyy");
     weightPlot->xAxis->setTicker(dateTicker);
-    weightPlot->xAxis->setLabel("Date");
-    weightPlot->yAxis->setLabel("Weight (lbs)");
+    //weightPlot->xAxis->setLabel("Date");
+    weightPlot->yAxis->setLabel("Lbs");
     weightPlot->xAxis2->setVisible(true);
     weightPlot->xAxis2->setTicks(false);
     weightPlot->yAxis2->setVisible(true);
     weightPlot->yAxis2->setTicks(false);
 
     bodyFatPlot->xAxis->setTicker(dateTicker);
-    bodyFatPlot->xAxis->setLabel("Date");
-    bodyFatPlot->yAxis->setLabel("Body Fat %");
+    //bodyFatPlot->xAxis->setLabel("Date");
+    bodyFatPlot->yAxis->setLabel("%");
     bodyFatPlot->xAxis2->setVisible(true);
     bodyFatPlot->xAxis2->setTicks(false);
     bodyFatPlot->yAxis2->setVisible(true);
     bodyFatPlot->yAxis2->setTicks(false);
+
+
+    weightPlot->xAxis->setTickLabelFont(tickLabelFont);
+    weightPlot->yAxis->setLabelFont(labelFont);
+    weightPlot->yAxis->setTickLabelFont(tickLabelFont);
+
+    bodyFatPlot->xAxis->setTickLabelFont(tickLabelFont);
+    bodyFatPlot->yAxis->setLabelFont(labelFont);
+    bodyFatPlot->yAxis->setTickLabelFont(tickLabelFont);
 
     weightGraph = weightPlot->addGraph();
     weightGraph->setPen(QPen(Qt::blue));

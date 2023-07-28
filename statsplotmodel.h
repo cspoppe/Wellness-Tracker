@@ -28,6 +28,7 @@ public:
     int findDateIndex(double date,QVector<double> dates);
     int insertDate(QDate qdate, QVector<double> &dates);
     double getTodaysNetCalories();
+    void setLoggingCompleted(bool status);
 
     QButtonGroup *checkBoxGroup;
     QVector<QString> getCompletedDateStrings() const;
@@ -67,6 +68,9 @@ private:
     QVector<double> completed_sugar;
     QVector<double> completed_protein;
 
+    QFont tickLabelFont;
+    QFont labelFont;
+
     std::unordered_map<plotNutrient,Qt::GlobalColor> plotColors;
     std::unordered_map<plotNutrient,QVector<double>*> nutrientStats;
     std::unordered_map<plotNutrient,QVector<double>*> completeNutrientStats;
@@ -77,7 +81,9 @@ private:
     double plotEndDay;
     void setVectorsToZero();
     void populateCompletedVectors();
+    void pushDataToCompletedVectors();
     void pushDataToCompletedVectors(int date_ptr);
+    void popDataFromCompletedVectors();
     void autoResizeAxes();
     bool plotCompleteDays;
 };

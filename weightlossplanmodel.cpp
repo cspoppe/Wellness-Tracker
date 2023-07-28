@@ -11,17 +11,28 @@ weightLossPlanModel::weightLossPlanModel(WeightTable *weightTableModel, statsPlo
     weightVector = weightTableModel->getWeightVectorPtr();
     weightDatesVector = weightTableModel->getDateVectorPtr();
 
+    tickToday = {0.0};
+    todayCalories = {0.0};
+
     completedDatesVector = statsModel->getCompletedDatesPtr();
     completedNetCaloriesVector = statsModel->getCompletedNetCaloriesPtr();
-    weeklyCaloriesTable = new weeklyCaloriesModel();
+    weeklyCaloriesTable = new weeklyCaloriesModel(loggingCompletedTodayFlag);
 
+    tickLabelFont.setPointSize(12);
+    labelFont.setPointSize(14);
+    labelFont.setStyleStrategy(QFont::PreferAntialias);
 
     weightLossPlot->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
-    dateTicker->setDateTimeFormat("MMM dd yyyy");
+    dateTicker->setDateTimeFormat("MMM d");
     weightLossPlot->xAxis->setTicker(dateTicker);
-    weightLossPlot->xAxis->setLabel("Date");
+    //weightLossPlot->xAxis->setLabel("Date");
     weightLossPlot->yAxis->setLabel("Weight (lbs)");
+    weightLossPlot->xAxis->setTickLabelFont(tickLabelFont);
+    weightLossPlot->xAxis->setLabelFont(labelFont);
+    weightLossPlot->yAxis->setTickLabelFont(tickLabelFont);
+    weightLossPlot->yAxis->setLabelFont(labelFont);
+    weightLossPlot->legend->setVisible(true);
     weightGraph = weightLossPlot->addGraph();
     weightGraph->setPen(QPen(Qt::blue));
     weightGraph->setName("Weight");
@@ -31,19 +42,24 @@ weightLossPlanModel::weightLossPlanModel(WeightTable *weightTableModel, statsPlo
     weightFitGraph->setPen(QPen(Qt::red));
     weightFitGraph->setName("Best Fit");
 
+    TDEEGraph = weeklyWeightPlot->addGraph();
+    TDEEGraph->setName("TDEE");
     weeklyNetCaloriesBar = new QCPBars(weeklyWeightPlot->xAxis,weeklyWeightPlot->yAxis);
     weeklyExcessCaloriesBar = new QCPBars(weeklyWeightPlot->xAxis,weeklyWeightPlot->yAxis);
     weeklyDeficitCaloriesBar = new QCPBars(weeklyWeightPlot->xAxis,weeklyWeightPlot->yAxis);
-    todayCaloriesBar = new QCPBars(weeklyWeightPlot->xAxis,weeklyWeightPlot->yAxis);
+    //todayCaloriesBar = new QCPBars(weeklyWeightPlot->xAxis,weeklyWeightPlot->yAxis);
 
-    TDEEGraph = weeklyWeightPlot->addGraph();
     QPen tdeePen;
     tdeePen.setColor(Qt::red);
     tdeePen.setStyle(Qt::DashLine);
     tdeePen.setWidthF(2);
     TDEEGraph->setPen(tdeePen);
 
-    todayCaloriesBar->setAntialiased(false);
+    weeklyNetCaloriesBar->setName("Net");
+    weeklyDeficitCaloriesBar->setName("Deficit");
+    weeklyExcessCaloriesBar->setName("Excess");
+
+    //todayCaloriesBar->setAntialiased(false);
     weeklyNetCaloriesBar->setAntialiased(false);
     weeklyExcessCaloriesBar->setAntialiased(false);
     weeklyDeficitCaloriesBar->setAntialiased(false);
@@ -53,8 +69,8 @@ weightLossPlanModel::weightLossPlanModel(WeightTable *weightTableModel, statsPlo
     weeklyExcessCaloriesBar->setStackingGap(0);
     weeklyDeficitCaloriesBar->setStackingGap(0);
 
-    todayCaloriesBar->setPen(QPen(QColor(255,108,34)));
-    todayCaloriesBar->setBrush(QColor(255,108,34).lighter(170));
+    //todayCaloriesBar->setPen(QPen(QColor(255,108,34)));
+    //todayCaloriesBar->setBrush(QColor(255,108,34).lighter(170));
     weeklyNetCaloriesBar->setPen(QPen(QColor(0,0,255)));
     weeklyNetCaloriesBar->setBrush(QColor(0,0,255).lighter(170));
     weeklyExcessCaloriesBar->setPen(QPen(QColor(255,0,0)));
@@ -78,6 +94,15 @@ void weightLossPlanModel::setWeightVectorPointers(const QVector<double> *weight,
     weightDatesVector = dates;
 }
 */
+
+void weightLossPlanModel::createTodayCaloriesBar()
+{
+    todayCaloriesBar = new QCPBars(weeklyWeightPlot->xAxis,weeklyWeightPlot->yAxis);
+    todayCaloriesBar->setAntialiased(false);
+    todayCaloriesBar->setPen(QPen(QColor(255,108,34)));
+    todayCaloriesBar->setBrush(QColor(255,108,34).lighter(170));
+    todayCaloriesBar->setName("Today");
+}
 
 void weightLossPlanModel::loadWeightLossPlan()
 {
@@ -183,10 +208,17 @@ void weightLossPlanModel::plotWeeklyCalories()
     // if logging today is not completed, we need to grab today's calories so far and store it separately so it can be plotted with its own color.
     if (!loggingCompletedTodayFlag)
     {
-        tickToday.push_back(todayIndex+1);
+        createTodayCaloriesBar();
+        tickToday[0] = (todayIndex+1);
         //todayCalories = statsModel->getTodaysCalories();
-        todayCalories.push_back(statsModel->getTodaysNetCalories());
+        todayCalories[0] = (statsModel->getTodaysNetCalories());
+        weeklyCaloriesTable->updateTodaysCount(statsModel->getTodaysNetCalories());
         todayCaloriesBar->setData(tickToday,todayCalories);
+    }
+    else
+    {
+        // remove the bar for today's incomplete calories, if it is there.
+        if (weeklyWeightPlot->hasPlottable(todayCaloriesBar)) weeklyWeightPlot->removePlottable(todayCaloriesBar);
     }
 
     // set up labels for x axis
@@ -203,11 +235,18 @@ void weightLossPlanModel::plotWeeklyCalories()
     weeklyWeightPlot->xAxis->setTicker(textTicker);
     weeklyWeightPlot->xAxis->setSubTicks(false);
     weeklyWeightPlot->xAxis->setTickLength(0,4);
-    weeklyWeightPlot->xAxis->setRange(0,8);
-    weeklyWeightPlot->xAxis->setLabel("Day");
+    weeklyWeightPlot->xAxis->setRange(0,9);
+    //weeklyWeightPlot->xAxis->setLabel("Day");
+    weeklyWeightPlot->xAxis->setLabelFont(labelFont);
+    weeklyWeightPlot->xAxis->setTickLabelFont(tickLabelFont);
+    weeklyWeightPlot->yAxis->setLabelFont(labelFont);
+    weeklyWeightPlot->yAxis->setTickLabelFont(tickLabelFont);
+    weeklyWeightPlot->legend->setVisible(true);
 
-    weeklyWeightPlot->yAxis->setRange(0,vectorMax(netCaloriesThisWeek)+500);
-    weeklyWeightPlot->yAxis->setLabel("Net Calories");
+    double yMax = vectorMax(netCaloriesThisWeek)+500;
+    if (yMax < TDEE_estimated) yMax = TDEE_estimated + 500;
+    weeklyWeightPlot->yAxis->setRange(0,yMax);
+    weeklyWeightPlot->yAxis->setLabel("Calories");
 
     TDEEGraph->setData({0,8},{TDEE_estimated,TDEE_estimated});
     weeklyNetCaloriesBar->setData(ticksNet,weeklyNetCaloriesPlotVector);
@@ -220,12 +259,17 @@ void weightLossPlanModel::updateTodaysCaloriesBar()
 {
     todayCalories[0] = statsModel->getTodaysNetCalories();
     todayCaloriesBar->setData(tickToday,todayCalories);
+    weeklyCaloriesTable->updateTodaysCount(todayCalories[0]);
     weeklyWeightPlot->replot();
 }
 
 void weightLossPlanModel::setLoggingCompletedFlag(bool status)
 {
     loggingCompletedTodayFlag = status;
+    // if the status is true, then we convert today's bar to a completed version,
+    // with green to indicate the deficit or red to indicate the excess.
+    plotWeeklyCalories();
+    weeklyCaloriesTable->setLoggingStatus(status);
 
 }
 
@@ -279,17 +323,17 @@ void weightLossPlanModel::calculateProgress()
     }
 
     int daysSinceStart = qRound((currentDateDouble - startDateDouble)/SEC_IN_DAY);
-    qDebug() << "calculateProgress:" << Qt::endl;
+    //qDebug() << "calculateProgress:" << Qt::endl;
     int nDays = completedDatesVector->size()-start_i;
     double totalCalories = 0.0;
     for (int i{start_i}; i < completedNetCaloriesVector->size();++i)
     {
-        qDebug() << " date: " << (*completedDatesVector)[i] << ", net calories: " << (*completedNetCaloriesVector)[i] << Qt::endl;
+        //qDebug() << " date: " << (*completedDatesVector)[i] << ", net calories: " << (*completedNetCaloriesVector)[i] << Qt::endl;
         totalCalories += (*completedNetCaloriesVector)[i];
     }
     // net calories consumed minus est. calories burned
     totalCalorieDelta = totalCalories - nDays*TDEE_estimated;
-    qDebug() << "total calorie delta: " << totalCalorieDelta << Qt::endl;
+    //qDebug() << "total calorie delta: " << totalCalorieDelta << Qt::endl;
     averageDailyDelta = totalCalorieDelta/nDays;
     estimatedWeightChange = averageDailyDelta*daysSinceStart/3500.0;
 
@@ -343,8 +387,8 @@ void weightLossPlanModel::calculateWeightLossFit()
     weightLossPlot->yAxis->setRange(minWeight-2,maxWeight+2);
     weightLossPlot->replot();
 
-    qDebug() << "x[0]: " << x[0] << Qt::endl;
-    qDebug() << "x[n]: " << x[x.size()-1] << Qt::endl;
+    //qDebug() << "x[0]: " << x[0] << Qt::endl;
+    //qDebug() << "x[n]: " << x[x.size()-1] << Qt::endl;
 
     // First, since dates are stored in seconds since 1970 and I'm concerned about doing math with such large values, especially squares,
     // I want to remove offset from x vector so that first date is represented as 0.
@@ -375,7 +419,7 @@ void weightLossPlanModel::calculateWeightLossFit()
 
     weight_change_lbs_per_day = weight_fit_m*SEC_IN_DAY;
 
-    qDebug() << "weight_fit_m: " << weight_fit_m << Qt::endl;
+    //qDebug() << "weight_fit_m: " << weight_fit_m << Qt::endl;
 
     // calculate end points of line of best fit so we can plot the line
     double fit_x0 = offset;
@@ -386,8 +430,8 @@ void weightLossPlanModel::calculateWeightLossFit()
     QVector<double> x_fit = {fit_x0, fit_xn};
     QVector<double> y_fit = {fit_y0, fit_yn};
 
-    qDebug() << "x_fit: " << x_fit << Qt::endl;
-    qDebug() << "y_fit: " << y_fit << Qt::endl;
+    //qDebug() << "x_fit: " << x_fit << Qt::endl;
+    //qDebug() << "y_fit: " << y_fit << Qt::endl;
 
     weightFitGraph->setData(x_fit,y_fit);
     weightLossPlot->replot();
